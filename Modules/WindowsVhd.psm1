@@ -407,6 +407,40 @@ class WindowsVhd
 
     <#
         .SYNOPSIS
+            Enables Windows Terminal Services via the Windows Registry
+
+        .LINK
+            http://www.pctools.com/guides/registry/detail/1213/
+            https://technet.microsoft.com/en-us/library/cc722151(v=ws.10).aspx
+
+        .NOTES
+            Is there official documentation for this anywhere?
+            Should I do this in unattend.xml instead?
+    #>
+    [void]EnableTerminalServices()
+    {
+        $hive = $this.MountSystemRegistryHive()
+        $hive.SetItemProperty('\ControlSet001\Control\Terminal Server', 'fDenyTSConnections', 0)
+    }
+
+    <#
+        .SYNOPSIS
+            Prevent the VHD from expanding to full size when natively booting
+
+        .LINK
+            https://technet.microsoft.com/en-us/library/gg318055(v=ws.10).aspx
+
+        .NOTES 
+            I'm not sure what this does yet. It's used by Convert-WindowsImage so I added it
+    #>
+    [void]DisableExpandOnNativeBoot()
+    {
+        $hive = $this.MountSystemRegistryHive()
+        $hive.SetItemProperty('\ControlSet001\Services\FsDepends\Parameters', 'VirtualDiskExpandOnMount', 4)
+    }
+
+    <#
+        .SYNOPSIS
             Slipstreams a driver into the VHD file
         
         .PARAMETER Path
