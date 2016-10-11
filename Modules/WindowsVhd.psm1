@@ -445,10 +445,42 @@ class WindowsVhd
         
         .PARAMETER Path
             The path to the driver to add to the image
+
+        .LINK
+            https://technet.microsoft.com/en-us/library/dn376497.aspx
     #>
     [void]AddDriver([string]$Path)
     {
         Add-WindowsDriver -Path $this.windowsDriveLetter -Recurse -Driver $Path -Verbose
+    }
+
+    <#
+        .SYNOPSIS
+            Slipstreams a windows feature from the sources\sxs directory to the VHD while offline
+
+        .LINK
+            https://technet.microsoft.com/en-us/library/dn376466.aspx
+    #>
+    [void]AddWindowsFeatures([string]$Feature)
+    {
+        $FeatureSourcePath = Join-Path -Path "$($this.windowsDriveLetter):" -ChildPath "sources\sxs"
+        Enable-WindowsOptionalFeature -FeatureName $Feature -Source $FeatureSourcePath -Path ($this.windowsDriveLetter) -All | Out-Null
+    }
+
+    <#
+        .SYNOPSIS
+            Slipstreams a .CAB or .MSI into an offline image
+
+        .LINK
+            https://technet.microsoft.com/en-us/library/dn376497.aspx
+
+        .NOTES
+            I'm not fully aware of the scale or capabilities of this option yet as I haven't tried it and only implemented it because
+            it's part of Convert-WindowsImages.ps1
+    #>
+    [void]AddWindowsPackage([string]$PackagePath)
+    {
+        Add-WindowsPackage -Path $this.windowsDriveLetter -PackagePath $PackagePath 
     }
 }
 
