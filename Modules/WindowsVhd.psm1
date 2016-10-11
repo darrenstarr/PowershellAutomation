@@ -404,5 +404,17 @@ class WindowsVhd
         }
         return $systemHivePath
     }
+
+    <#
+        .SYNOPSIS
+            Slipstreams a driver into the VHD file
+        
+        .PARAMETER Path
+            The path to the driver to add to the image
+    #>
+    [void]AddDriver([string]$Path)
+    {
+        Add-WindowsDriver -Path $this.windowsDriveLetter -Recurse -Driver $Path -Verbose
+    }
 }
 
