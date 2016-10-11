@@ -10,6 +10,9 @@ $unattend.SetInterfaceIPAddress('Ethernet', '10.1.1.5', 24, '10.1.1.1')
 $unattend.SetDHCPEnabled('Ethernet', $false)
 $unattend.SetRouterDiscoveryEnabled('Ethernet', $false)
 $unattend.SetInterfaceIPv4Metric('Ethernet', 10)
+
+$unattend.AddFirstLogonCommand('Get a directory', 'dir')
+
 $unattend.ToXml()
 
 Exit

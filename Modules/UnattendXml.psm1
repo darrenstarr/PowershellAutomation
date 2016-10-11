@@ -93,6 +93,11 @@ class UnattendXml
         return $this.GetSettingsNode('specialize')
     }    
 
+    hidden [System.Xml.XmlElement] GetOobeSystemSettings()
+    {
+        return $this.GetSettingsNode('oobe')
+    }
+
     hidden [System.Xml.XmlElement] GetSectionFromSettings([System.Xml.XmlElement]$XmlSettings, [string]$Name)
     {
         $result = $XmlSettings.ChildNodes | Where { $_.LocalName -eq 'component' -and $_.Attributes['name'].'#text' -eq $Name }
@@ -146,7 +151,7 @@ class UnattendXml
         }   
         
         $interfaceNode = $this.document.CreateElement('Interface', $this.document.DocumentElement.NamespaceURI)
-        $interfaceNode.SetAttribute('wcm:action', 'add')
+        $interfaceNode.SetAttribute('action', [UnattendXML]::WCM, 'add')
         $Interfaces.AppendChild($interfaceNode)
 
         $identifierNode = $this.document.CreateElement('Identifier', $this.document.DocumentElement.NamespaceURI)
@@ -196,8 +201,8 @@ class UnattendXml
         $result = $unicastIPAddresses.ChildNodes | Where { $_.LocalName -eq 'IpAddress' -and $_.Attributes['keyValue'].'#text' -eq $KeyValue }
         if ($result -eq $null) {
             $result = $this.document.CreateElement('IpAddress', $this.document.DocumentElement.NamespaceURI)
-            $result.SetAttribute('wcm:action', 'add')
-            $result.SetAttribute('wcm:keyValue', $KeyValue)
+            $result.SetAttribute('action', [UnattendXML]::WCM, 'add')
+            $result.SetAttribute('keyValue',[UnattendXML]::WCM, $KeyValue)
             $unicastIPAddresses.AppendChild($result)
         }
 
@@ -233,7 +238,7 @@ class UnattendXml
         $routeIdentifier = ([Convert]::ToInt32($routeIdentifier)) + 1
 
         $routeNode = $this.document.CreateElement('Route', $this.document.DocumentElement.NamespaceURI)
-        $routeNode.SetAttribute('wcm:action', 'add')
+        $routeNode.SetAttribute('action', [UnattendXML]::WCM, 'add')
         $routes.AppendChild($routeNode)
 
         $identifierNode = $this.document.CreateElement('Identifier', $this.document.DocumentElement.NamespaceURI)
@@ -247,6 +252,14 @@ class UnattendXml
         $routeNode.AppendChild($prefixNode)
 
         return $routeNode
+    }
+
+    hidden [System.Xml.XmlElement]GetFirstLogonCommandSection()
+    {
+        $xmlSettings = $this.GetOobeSystemSettings()
+        $xmlComponent = $this.GetWindowsShellSetupSection($xmlSettings)
+        $firstLogonCommands = $this.GetOrCreateChildNode($xmlComponent, 'FirstLogonCommands')
+        return $firstLogonCommands
     }
 
     hidden [string]ConvertToString([SecureString]$SecureString)
@@ -465,6 +478,47 @@ class UnattendXml
     #>
     [void] SetAdministratorPassword([string]$AdministratorPassword) {
         $this.SetAdministratorPassword((ConvertTo-SecureString $AdministratorPassword -AsPlainText -Force))
+    }
+
+    <#
+        .SYNOPSIS
+            Add's a command to the FirstLogonCommand list
+        
+        .PARAMETER Description
+            A description of what the command is to do
+
+        .PARAMETER command
+            The command to run
+    #>
+    [void] AddFirstLogonCommand([string]$Description, [string]$Command)
+    {
+        $firstLogonCommands = $this.GetFirstLogonCommandSection()
+        $highestOrderNumber = 0
+        $asyncCommands = $firstLogonCommands.ChildNodes | Where { $_.LocalName -eq 'AsynchronousCommand' }
+        foreach($asyncCommand in $asyncCommands) {
+            $orderNumber = $asyncCommand.ChildNodes | Where { $_.LocalName -eq 'order' }
+            $highestOrderNumber = [Math]::Max($highestOrderNumber, [Convert]::ToInt32($orderNumber.InnerText))
+        }
+
+        $orderValueNode = $this.document.CreateTextNode(($highestOrderNumber + 1).ToString())
+        $orderNode = $this.document.CreateElement('AsynchronousCommand', $this.document.DocumentElement.NamespaceURI)
+        $orderNode.AppendChild($orderValueNode)
+
+        $descriptionTextNode = $this.document.CreateTextNode($Description)
+        $descriptionNode = $this.document.CreateElement('Description', $this.document.DocumentElement.NamespaceURI)
+        $descriptionNode.AppendChild($descriptionTextNode)
+
+        $commandTextNode = $this.document.CreateTextNode($Command)
+        $commandNode = $this.document.CreateElement('Command', $this.document.DocumentElement.NamespaceURI)
+        $commandNode.AppendChild($commandTextNode)
+
+        $asyncCommandNode = $this.document.CreateElement('AsynchronousCommand', $this.document.DocumentElement.NamespaceURI)
+        $asyncCommandNode.SetAttribute('action', [UnattendXML]::WCM, 'add')
+        $asyncCommandNode.AppendChild($orderNode)
+        $asyncCommandNode.AppendChild($descriptionNode)
+        $asyncCommandNode.AppendChild($commandNode)
+
+        $firstLogonCommands.AppendChild($asyncCommandNode)
     }
 
     <#
