@@ -556,6 +556,19 @@ class UnattendXml
         .SYNOPSIS
             Adds a run synchronous command to the specialize section
 
+        .DESCRIPTION
+            Adds a command to the ordered list of synchronous commands to be executed as part of the startup process for post installation
+            steps through sysprep.exe.
+
+        .PARAMETER Description
+            A description of the command to run on startup
+
+        .PARAMETER Command
+            The command to execute including Path and arguments
+
+        .PARAMETER WillReboot
+            Whether the command will reboot the system after running
+
         .LINK
             https://technet.microsoft.com/en-us/library/cc722359(v=ws.10).aspx
     #>
@@ -596,11 +609,64 @@ class UnattendXml
         return $synchronousCommandNode
     }
 
+    <#
+        .SYNOPSIS
+            Adds a run synchronous command to the specialize section
+
+        .DESCRIPTION
+            Adds a command to the ordered list of synchronous commands to be executed as part of the startup process for post installation
+            steps through sysprep.exe.
+
+        .PARAMETER Description
+            A description of the command to run on startup
+
+        .PARAMETER Command
+            The command to execute including Path and arguments
+
+        .NOTES
+            This function is an overload which defaults the 'WillReboot' value to never
+
+        .LINK
+            https://technet.microsoft.com/en-us/library/cc722359(v=ws.10).aspx
+    #>
     [System.Xml.XmlElement] AddRunSynchronousCommand([string]$Description, [string]$Command)
     {
         return $this.AddRunSynchronousCommand($Description, $Command, [EnumWillReboot]::Never)
     }
 
+    <#
+        .SYNOPSIS
+            Adds a run synchronous command to the specialize section
+
+        .DESCRIPTION
+            Adds a command to the ordered list of synchronous commands to be executed as part of the startup process for post installation
+            steps through sysprep.exe.
+
+        .PARAMETER Description
+            A description of the command to run on startup
+
+        .PARAMETER Domain
+            The login domain to use for "Run As" for the command
+
+        .PARAMETER Username
+            The login username to use for "Run As" for the command
+
+        .PARAMETER Password
+            The login password to use for the "Run As" for the command
+
+        .PARAMETER Command
+            The command to execute including Path and arguments
+
+        .PARAMETER WillReboot
+            Whether the command will reboot the system after running
+
+        .NOTES
+            Warning, when providing login information in the unattend.xml, a copy of the unattend file may end up stored within
+            the \Windows\Panther directory with the passwords in tact. The file should be explicitly removed upon completion
+
+        .LINK
+            https://technet.microsoft.com/en-us/library/cc722359(v=ws.10).aspx
+    #>
     [System.Xml.XmlElement] AddRunSynchronousCommand([string]$Description, [string]$Domain, [string]$Username, [string]$Password, [string]$Command, [EnumWillReboot]$WillReboot=[EnumWillReboot]::Never)
     {
         $synchronousCommandNode = $this.AddRunSynchronousCommand($Description, $Command, $WillReboot)
@@ -626,6 +692,38 @@ class UnattendXml
         return $synchronousCommandNode
     }
 
+    <#
+        .SYNOPSIS
+            Adds a run synchronous command to the specialize section
+
+        .DESCRIPTION
+            Adds a command to the ordered list of synchronous commands to be executed as part of the startup process for post installation
+            steps through sysprep.exe.
+
+        .PARAMETER Description
+            A description of the command to run on startup
+
+        .PARAMETER Domain
+            The login domain to use for "Run As" for the command
+
+        .PARAMETER Username
+            The login username to use for "Run As" for the command
+
+        .PARAMETER Password
+            The login password to use for the "Run As" for the command
+
+        .PARAMETER Command
+            The command to execute including Path and arguments
+
+        .NOTES
+            This is an overloaded function which sets the default value of WillReboot to never
+
+            Warning, when providing login information in the unattend.xml, a copy of the unattend file may end up stored within
+            the \Windows\Panther directory with the passwords in tact. The file should be explicitly removed upon completion
+
+        .LINK
+            https://technet.microsoft.com/en-us/library/cc722359(v=ws.10).aspx
+    #>
     [System.Xml.XmlElement] AddRunSynchronousCommand([string]$Description, [string]$Domain, [string]$Username, [string]$Password, [string]$Command)
     {
         return $this.AddRunSynchronousCommand($Description, $Domain, $Username, $Password, $Command, [EnumWillReboot]::Never)
