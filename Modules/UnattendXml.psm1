@@ -37,6 +37,18 @@ enum EnumWillReboot {
 }
 
 <#
+    .SYNOPSIS
+        Valid values for authentication types for remote desktop login
+
+    .LINK
+        https://technet.microsoft.com/en-us/library/cc722192(v=ws.10).aspx
+#>
+enum EnumRdpAuthentication {
+    NetworkLevel = 0
+    UserLevel = 1
+}
+
+<#
     .SYNOPSIS 
         An API for generating Unattend.xml files for Windows Server 2016
 
@@ -91,6 +103,13 @@ class UnattendXml
         throw 'Invalid value for WillReboot'
     }
 
+    static hidden [string] RdpAuthenticationModeToString([EnumRdpAuthentication]$Value)
+    {
+        if($Value -eq [EnumRdpAuthentication]::NetworkLevel) { return 0 }
+        if($Value -eq [EnumRdpAuthentication]::UserLevel) { return 1 }
+        throw 'Invalid value for RDP authentication mode'
+    }
+
     hidden [System.Xml.XmlElement] GetSettingsNode([string]$Pass)
     {
         # TODO : Should this be -eq $Pass?
@@ -142,6 +161,16 @@ class UnattendXml
     hidden [System.Xml.XmlElement] GetWindowsShellSetupSection([System.Xml.XmlElement]$XmlSettings)
     {
         return $this.GetSectionFromSettings($XmlSettings, 'Microsoft-Windows-Shell-Setup')
+    }
+
+    hidden [System.Xml.XmlElement] GetTerminalServicesLocalSessionManager([System.Xml.XmlElement]$XmlSettings)
+    {
+        return $this.GetSectionFromSettings($XmlSettings, 'Microsoft-Windows-TerminalServices-LocalSessionManager')
+    }
+
+    hidden [System.Xml.XmlElement] GetTerminalServicesRdpWinStationExtensions([System.Xml.XmlElement]$XmlSettings)
+    {
+        return $this.GetSectionFromSettings($XmlSettings, 'Microsoft-Windows-TerminalServices-RDP-WinStationExtensions')
     }
 
     hidden [System.Xml.XmlElement] GetWindowsTCPIPSection([System.Xml.XmlElement]$XmlSettings)
@@ -727,6 +756,34 @@ class UnattendXml
     [System.Xml.XmlElement] AddRunSynchronousCommand([string]$Description, [string]$Domain, [string]$Username, [string]$Password, [string]$Command)
     {
         return $this.AddRunSynchronousCommand($Description, $Domain, $Username, $Password, $Command, [EnumWillReboot]::Never)
+    }
+
+    <#
+        .SYNOPSIS
+            Enables Windows Terminal Services to connect
+        
+        .LINK
+            https://technet.microsoft.com/en-us/library/cc722017%28v=ws.10%29.aspx?f=255&MSPPError=-2147217396
+    #>
+    [void]SetRemoteDesktopEnabled()
+    {
+        $xmlSettings = $this.GetSpecializeSettings()
+        $terminalServicesLocalSessionManager = $this.GetTerminalServicesLocalSessionManager($xmlSettings)
+        $this.SetBoolNodeValue($terminalServicesLocalSessionManager, 'fDenyTSConnections', $false)
+    }
+
+    <#
+        .SYNOPSIS
+            Configures whether to support user or network level authentication for RDP sessions
+
+        .LINK
+            https://technet.microsoft.com/en-us/library/cc722192(v=ws.10).aspx
+    #>
+    [void]SetRemoteDesktopAuthenticationMode([EnumRdpAuthentication]$AuthenticationMode)
+    {
+        $xmlSettings = $this.GetSpecializeSettings()
+        $terminalServicesRdpWinStationExtensions = $this.GetTerminalServicesRdpWinStationExtensions($xmlSettings)
+        $this.SetTextNodeValue($terminalServicesRdpWinStationExtensions, 'UserAuthentication', [UnattendXml]::RdpAuthenticationModeToString($AuthenticationMode))
     }
 
     <#

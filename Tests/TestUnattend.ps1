@@ -19,6 +19,8 @@ $unattend.AddRunSynchronousCommand('First command', '', 'bob@minions.com', 'bana
 $unattend.AddRunSynchronousCommand('Second command', '', 'marcia@brady.com', 'OhMyGoodness', 'brushmyhair.exe', [EnumWillReboot]::Always) | Out-Null
 $unattend.AddRunSynchronousCommand('Third command', "there's a story") | Out-Null
 
+$unattend.SetRemoteDesktopEnabled()
+
 $unattend.ToXml()
 
 Exit
