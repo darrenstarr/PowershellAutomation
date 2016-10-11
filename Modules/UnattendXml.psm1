@@ -23,6 +23,19 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #>
 
+<# 
+    .SYNOPSIS
+        Values of WillReboot for the section RunSynchronousCommand within unattend.xml
+
+    .LINK
+        https://technet.microsoft.com/en-us/library/cc722061(v=ws.10).aspx
+#>
+enum EnumWillReboot {
+    Always
+    OnRequest 
+    Never
+}
+
 <#
     .SYNOPSIS 
         An API for generating Unattend.xml files for Windows Server 2016
@@ -69,6 +82,14 @@ class UnattendXml
     hidden static [string] $LanguageNeutral='neutral'
     hidden static [string] $WCM = 'http://schemas.microsoft.com/WMIConfig/2002/State'
     hidden static [string] $XmlSchemaInstance = 'http://www.w3.org/2001/XMLSchema-instance'
+
+    static hidden [string] WillRebootToString([EnumWillReboot]$Value)
+    {
+        if($Value -eq [EnumWillReboot]::Always) { return 'Always' }
+        if($Value -eq [EnumWillReboot]::Never) { return 'Never' }
+        if($Value -eq [EnumWillReboot]::OnRequest) { return 'OnRequest' }
+        throw 'Invalid value for WillReboot'
+    }
 
     hidden [System.Xml.XmlElement] GetSettingsNode([string]$Pass)
     {
@@ -260,6 +281,13 @@ class UnattendXml
         $xmlComponent = $this.GetWindowsShellSetupSection($xmlSettings)
         $firstLogonCommands = $this.GetOrCreateChildNode($xmlComponent, 'FirstLogonCommands')
         return $firstLogonCommands
+    }
+
+    hidden [System.Xml.XmlElement]GetRunSynchronousSection()
+    {
+        $xmlSettings = $this.GetSpecializeSettings()
+        $xmlComponent = $this.GetWindowsShellSetupSection($xmlSettings)
+        return $this.GetOrCreateChildNode($xmlComponent, 'RunSynchronous')
     }
 
     hidden [string]ConvertToString([SecureString]$SecureString)
@@ -489,6 +517,9 @@ class UnattendXml
 
         .PARAMETER command
             The command to run
+
+        .LINK
+            https://technet.microsoft.com/en-us/library/cc722150(v=ws.10).aspx
     #>
     [void] AddFirstLogonCommand([string]$Description, [string]$Command)
     {
@@ -501,7 +532,7 @@ class UnattendXml
         }
 
         $orderValueNode = $this.document.CreateTextNode(($highestOrderNumber + 1).ToString())
-        $orderNode = $this.document.CreateElement('AsynchronousCommand', $this.document.DocumentElement.NamespaceURI)
+        $orderNode = $this.document.CreateElement('Order', $this.document.DocumentElement.NamespaceURI)
         $orderNode.AppendChild($orderValueNode)
 
         $descriptionTextNode = $this.document.CreateTextNode($Description)
@@ -519,6 +550,85 @@ class UnattendXml
         $asyncCommandNode.AppendChild($commandNode)
 
         $firstLogonCommands.AppendChild($asyncCommandNode)
+    }
+
+    <#
+        .SYNOPSIS
+            Adds a run synchronous command to the specialize section
+
+        .LINK
+            https://technet.microsoft.com/en-us/library/cc722359(v=ws.10).aspx
+    #>
+    [System.Xml.XmlElement] AddRunSynchronousCommand([string]$Description, [string]$Command, [EnumWillReboot]$WillReboot=[EnumWillReboot]::Never)
+    {
+        $runSynchronousSection = $this.GetRunSynchronousSection()
+        $highestOrderNumber = 0
+        $synchronousCommands = $runSynchronousSection.ChildNodes | Where { $_.LocalName -eq 'RunSynchronousCommand' }
+        foreach($synchronousCommand in $synchronousCommands) {
+            $orderNumber = $synchronousCommand.ChildNodes | Where { $_.LocalName -eq 'order' }
+            $highestOrderNumber = [Math]::Max($highestOrderNumber, [Convert]::ToInt32($orderNumber.InnerText))
+        }
+
+        $orderValueNode = $this.document.CreateTextNode(($highestOrderNumber + 1).ToString())
+        $orderNode = $this.document.CreateElement('Order', $this.document.DocumentElement.NamespaceURI)
+        $orderNode.AppendChild($orderValueNode)
+
+        $descriptionTextNode = $this.document.CreateTextNode($Description)
+        $descriptionNode = $this.document.CreateElement('Description', $this.document.DocumentElement.NamespaceURI)
+        $descriptionNode.AppendChild($descriptionTextNode)
+
+        $pathTextNode = $this.document.CreateTextNode($Command)
+        $pathNode = $this.document.CreateElement('Path', $this.document.DocumentElement.NamespaceURI)
+        $pathNode.AppendChild($pathTextNode)
+
+        $willRebootTextNode = $this.document.CreateTextNode([UnattendXml]::WillRebootToString($WillReboot))    
+        $willRebootNode = $this.document.CreateElement('WillReboot', $this.document.DocumentElement.NamespaceURI)
+        $willRebootNode.AppendChild($willRebootTextNode)
+
+        $synchronousCommandNode = $this.document.CreateElement('RunSynchronousCommand', $this.document.DocumentElement.NamespaceURI)
+        $synchronousCommandNode.SetAttribute('action', [UnattendXml]::WCM, 'add')
+        $synchronousCommandNode.AppendChild($orderNode)
+        $synchronousCommandNode.AppendChild($descriptionNode)
+        $synchronousCommandNode.AppendChild($pathNode)
+        $synchronousCommandNode.AppendChild($willRebootNode)
+    
+        $runSynchronousSection.AppendChild($synchronousCommandNode)
+        return $synchronousCommandNode
+    }
+
+    [System.Xml.XmlElement] AddRunSynchronousCommand([string]$Description, [string]$Command)
+    {
+        return $this.AddRunSynchronousCommand($Description, $Command, [EnumWillReboot]::Never)
+    }
+
+    [System.Xml.XmlElement] AddRunSynchronousCommand([string]$Description, [string]$Domain, [string]$Username, [string]$Password, [string]$Command, [EnumWillReboot]$WillReboot=[EnumWillReboot]::Never)
+    {
+        $synchronousCommandNode = $this.AddRunSynchronousCommand($Description, $Command, $WillReboot)
+
+        $domainTextNode = $this.document.CreateTextNode($domain)
+        $domainNode = $this.document.CreateElement('Domain', $this.document.DocumentElement.NamespaceURI)
+        $domainNode.AppendChild($domainTextNode)
+
+        $usernameTextNode = $this.document.CreateTextNode($Username)
+        $usernameNode = $this.document.CreateElement('Username', $this.document.DocumentElement.NamespaceURI)
+        $usernameNode.AppendChild($usernameTextNode)
+
+        $passwordTextNode = $this.document.CreateTextNode($Password)
+        $passwordNode = $this.document.CreateElement('Password', $this.document.DocumentElement.NamespaceURI)
+        $passwordNode.AppendChild($passwordTextNode)
+
+        $credentialsNode = $this.document.CreateElement('Credentials', $this.document.DocumentElement.NamespaceURI)
+        $credentialsNode.AppendChild($domainNode)
+        $credentialsNode.AppendChild($usernameNode)
+        $credentialsNode.AppendChild($passwordNode)
+        $synchronousCommandNode.AppendChild($credentialsNode)
+
+        return $synchronousCommandNode
+    }
+
+    [System.Xml.XmlElement] AddRunSynchronousCommand([string]$Description, [string]$Domain, [string]$Username, [string]$Password, [string]$Command)
+    {
+        return $this.AddRunSynchronousCommand($Description, $Domain, $Username, $Password, $Command, [EnumWillReboot]::Never)
     }
 
     <#

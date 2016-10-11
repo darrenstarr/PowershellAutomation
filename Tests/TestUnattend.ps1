@@ -12,6 +12,12 @@ $unattend.SetRouterDiscoveryEnabled('Ethernet', $false)
 $unattend.SetInterfaceIPv4Metric('Ethernet', 10)
 
 $unattend.AddFirstLogonCommand('Get a directory', 'dir')
+$unattend.AddFirstLogonCommand('come take my hand', 'bob a ran')
+$unattend.AddFirstLogonCommand('Minions rule!', 'Bob stuart kevin')
+
+$unattend.AddRunSynchronousCommand('First command', '', 'bob@minions.com', 'banana', 'feed the minions') | Out-Null
+$unattend.AddRunSynchronousCommand('Second command', '', 'marcia@brady.com', 'OhMyGoodness', 'brushmyhair.exe', [EnumWillReboot]::Always) | Out-Null
+$unattend.AddRunSynchronousCommand('Third command', "there's a story") | Out-Null
 
 $unattend.ToXml()
 
