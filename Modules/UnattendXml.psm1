@@ -343,13 +343,13 @@ class UnattendXml
 
     hidden [void]SetAdministratorPassword([SecureString]$AdministratorPassword)
     {
-        $xmlSettings = $this.GetOfflineServicingSettings()
+        $xmlSettings = $this.GetOobeSystemSettings()
         $XmlComponent = $this.GetWindowsShellSetupSection($xmlSettings)
 
-        $XmlUserAccounts = $this.document.CreateElement('OfflineUserAccounts', $this.document.DocumentElement.NamespaceURI)
+        $XmlUserAccounts = $this.document.CreateElement('UserAccounts', $this.document.DocumentElement.NamespaceURI)
         $XmlComponent.AppendChild($XmlUserAccounts)
-
-        $XmlAdministratorPassword = $this.document.CreateElement('OfflineAdministratorPassword', $this.document.DocumentElement.NamespaceURI)
+        
+        $XmlAdministratorPassword = $this.document.CreateElement('AdministratorPassword', $this.document.DocumentElement.NamespaceURI)
         $XmlUserAccounts.AppendChild($XmlAdministratorPassword) 
 
         $XmlValue = $this.document.CreateElement('Value', $this.document.DocumentElement.NamespaceURI)
