@@ -398,7 +398,7 @@ class UnattendXml
     #>
     [void]SetRegisteredOwner([string]$RegisteredOwner)
     {
-        $offlineServiceSettings = $this.GetOfflineServicingSettings()
+        $offlineServiceSettings = $this.GetSpecializeSettings()
         $windowsShellSetupNode = $this.GetWindowsShellSetupSection($offlineServiceSettings)
         $this.SetTextNodeValue($windowsShellSetupNode, 'RegisteredOwner', $RegisteredOwner)
     }
@@ -409,7 +409,7 @@ class UnattendXml
     #>
     [void]SetRegisteredOrganization([string]$RegisteredOrganization)
     {
-        $offlineServiceSettings = $this.GetOfflineServicingSettings()
+        $offlineServiceSettings = $this.GetSpecializeSettings()
         $windowsShellSetupNode = $this.GetWindowsShellSetupSection($offlineServiceSettings)
         $this.SetTextNodeValue($windowsShellSetupNode, 'RegisteredOrganization', $RegisteredOrganization)        
     }
@@ -420,7 +420,7 @@ class UnattendXml
     #>
     [void]SetComputerName([string]$ComputerName)
     {
-        $offlineServiceSettings = $this.GetOfflineServicingSettings()
+        $offlineServiceSettings = $this.GetSpecializeSettings()
         $windowsShellSetupNode = $this.GetWindowsShellSetupSection($offlineServiceSettings)
         $this.SetTextNodeValue($windowsShellSetupNode, 'ComputerName', $ComputerName)        
     }
@@ -435,7 +435,7 @@ class UnattendXml
     #>
     [void]SetTimeZone([string]$TimeZone)
     {
-        $offlineServiceSettings = $this.GetOfflineServicingSettings()
+        $offlineServiceSettings = $this.GetSpecializeSettings()
         $windowsShellSetupNode = $this.GetWindowsShellSetupSection($offlineServiceSettings)
         $this.SetTextNodeValue($windowsShellSetupNode, 'TimeZone', $TimeZone)                
     }
