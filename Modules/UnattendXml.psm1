@@ -135,7 +135,7 @@ class UnattendXml
 
     hidden [System.Xml.XmlElement] GetOobeSystemSettings()
     {
-        return $this.GetSettingsNode('oobe')
+        return $this.GetSettingsNode('oobeSystem')
     }
 
     hidden [System.Xml.XmlElement] GetSectionFromSettings([System.Xml.XmlElement]$XmlSettings, [string]$Name)
@@ -353,12 +353,14 @@ class UnattendXml
         $XmlUserAccounts.AppendChild($XmlAdministratorPassword) 
 
         $XmlValue = $this.document.CreateElement('Value', $this.document.DocumentElement.NamespaceURI)
-        $XmlText = $this.document.CreateTextNode([Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes(($this.ConvertToString($AdministratorPassword)) + 'OfflineAdministratorPassword')))
+#        $XmlText = $this.document.CreateTextNode([Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes(($this.ConvertToString($AdministratorPassword)) + 'AdministratorPassword')))
+        $XmlText = $this.document.CreateTextNode($this.ConvertToString($AdministratorPassword))
         $XmlValue.AppendChild($XmlText)
         $XmlAdministratorPassword.AppendChild($XmlValue)
 
         $XmlPlainText = $this.document.CreateElement('PlainText', $this.document.DocumentElement.NamespaceURI)
-        $XmlPassword = $this.document.CreateTextNode('false')
+#        $XmlPassword = $this.document.CreateTextNode('false')
+        $XmlPassword = $this.document.CreateTextNode('true')
         $XmlPlainText.AppendChild($XmlPassword)
         $XmlAdministratorPassword.AppendChild($XmlPlainText) 
     }
@@ -389,6 +391,30 @@ class UnattendXml
         $oobeSettings = $this.GetOrCreateChildNode($XmlComponent, 'OOBE')
 
         $this.SetBoolNodeValue($oobeSettings, 'SkipMachineOOBE', $skipMachineOOBE)
+    }
+
+    [void] SetAutoLogon([string]$Username, [string]$password, [int]$Count)
+    {
+        [SecureString]$securePassword = ConvertTo-SecureString -AsPlainText -Force -String $password
+        $this.SetAutoLogon($username, $securePassword, $count)
+    }
+
+    [void] SetAutoLogon([string]$Username, [SecureString]$password, [int]$Count)
+    {
+        $xmlSettings = $this.GetOobeSystemSettings()
+        $XmlComponent = $this.GetWindowsShellSetupSection($xmlSettings)
+        $autoLogonNode = $this.GetOrCreateChildNode($XmlComponent, 'AutoLogon')
+        
+        $passwordNode = $this.GetOrCreateChildNode($autoLogonNode, 'Password')
+#        $this.SetTextNodeValue($passwordNode, 'Value', [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($this.ConvertToString($password))))
+        $this.SetTextNodeValue($passwordNode, 'Value', $this.ConvertToString($password))
+        $this.SetBoolNodeValue($passwordNode, 'PlainText', $true)
+
+        $this.SetBoolNodeValue($autoLogonNode, 'Enabled', $true)
+
+        $this.SetInt32NodeValue($autoLogonNode, 'LogonCount', $Count)
+
+        $this.SetTextNodeValue($autoLogonNode, 'Username', $Username)
     }
 
     hidden [void]SetTextNodeValue([System.Xml.XmlElement]$Parent, [string]$NodeName, [string]$Value)
