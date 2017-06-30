@@ -363,6 +363,34 @@ class UnattendXml
         $XmlAdministratorPassword.AppendChild($XmlPlainText) 
     }
 
+    <#
+        .SYNOPSIS
+            Disables the EULA Page
+        .LINK
+            https://technet.microsoft.com/en-us/library/cc749231(v=ws.10).aspx
+    #>
+    [void] SetHideEula([bool]$hideEula) {
+        $xmlSettings = $this.GetOobeSystemSettings()
+        $XmlComponent = $this.GetWindowsShellSetupSection($xmlSettings)
+        $oobeSettings = $this.GetOrCreateChildNode($XmlComponent, 'OOBE')
+
+        $this.SetBoolNodeValue($oobeSettings, 'HideEULAPage', $hideEula)
+    }
+
+    <#
+        .SYNOPSIS
+            Skips the machine OOBE screens
+        .LINK
+            https://technet.microsoft.com/en-us/library/cc765947(v=ws.10).aspx
+    #>
+    [void] SetSkipMachineOOBE([bool]$skipMachineOOBE) {
+        $xmlSettings = $this.GetOobeSystemSettings()
+        $XmlComponent = $this.GetWindowsShellSetupSection($xmlSettings)
+        $oobeSettings = $this.GetOrCreateChildNode($XmlComponent, 'OOBE')
+
+        $this.SetBoolNodeValue($oobeSettings, 'SkipMachineOOBE', $skipMachineOOBE)
+    }
+
     hidden [void]SetTextNodeValue([System.Xml.XmlElement]$Parent, [string]$NodeName, [string]$Value)
     {
         $namedNode = $this.GetOrCreateChildNode($Parent, $NodeName)
