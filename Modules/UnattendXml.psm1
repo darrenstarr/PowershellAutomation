@@ -178,6 +178,11 @@ class UnattendXml
         return $this.GetSectionFromSettings($XmlSettings, 'Microsoft-Windows-TCPIP')
     }
 
+    hidden [System.Xml.XmlElement] GetWindowsDNSClientSection([System.Xml.XmlElement]$XmlSettings)
+    {
+        return $this.GetSectionFromSettings($XmlSettings, 'Microsoft-Windows-DNS-Client')
+    }
+
     hidden [System.Xml.XmlElement] GetTCPIPInterfaces([System.Xml.XmlElement]$XmlSettings)
     {
         $XmlComponent = $this.GetWindowsTCPIPSection($XmlSettings)
@@ -353,14 +358,12 @@ class UnattendXml
         $XmlUserAccounts.AppendChild($XmlAdministratorPassword) 
 
         $XmlValue = $this.document.CreateElement('Value', $this.document.DocumentElement.NamespaceURI)
-#        $XmlText = $this.document.CreateTextNode([Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes(($this.ConvertToString($AdministratorPassword)) + 'AdministratorPassword')))
-        $XmlText = $this.document.CreateTextNode($this.ConvertToString($AdministratorPassword))
+        $XmlText = $this.document.CreateTextNode([Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes(($this.ConvertToString($AdministratorPassword)) + 'AdministratorPassword')))
         $XmlValue.AppendChild($XmlText)
         $XmlAdministratorPassword.AppendChild($XmlValue)
 
         $XmlPlainText = $this.document.CreateElement('PlainText', $this.document.DocumentElement.NamespaceURI)
-#        $XmlPassword = $this.document.CreateTextNode('false')
-        $XmlPassword = $this.document.CreateTextNode('true')
+        $XmlPassword = $this.document.CreateTextNode('false')
         $XmlPlainText.AppendChild($XmlPassword)
         $XmlAdministratorPassword.AppendChild($XmlPlainText) 
     }
@@ -406,9 +409,8 @@ class UnattendXml
         $autoLogonNode = $this.GetOrCreateChildNode($XmlComponent, 'AutoLogon')
         
         $passwordNode = $this.GetOrCreateChildNode($autoLogonNode, 'Password')
-#        $this.SetTextNodeValue($passwordNode, 'Value', [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($this.ConvertToString($password))))
-        $this.SetTextNodeValue($passwordNode, 'Value', $this.ConvertToString($password))
-        $this.SetBoolNodeValue($passwordNode, 'PlainText', $true)
+        $this.SetTextNodeValue($passwordNode, 'Value', [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes(($this.ConvertToString($password)) + 'Password')))
+        $this.SetBoolNodeValue($passwordNode, 'PlainText', $false)
 
         $this.SetBoolNodeValue($autoLogonNode, 'Enabled', $true)
 
@@ -581,6 +583,57 @@ class UnattendXml
 
     <#
         .SYNOPSIS
+            Sets DNS configuration for an interface 
+        .NOTES
+            This function is VERY "alpha version" and should not be used heavily until it's been completed
+        .LINK
+            https://technet.microsoft.com/en-us/library/ff716008(v=ws.10).aspx
+    #>
+    [void]SetDNSInterfaceSettings([string]$InterfaceIdentifier, [string[]]$DNSServerAddresses, [string]$DNSDomain)
+    {
+        $XmlSettings = $this.GetSpecializeSettings()
+        $dnsSection = $this.GetWindowsDNSClientSection($XmlSettings)
+        $interfacesSection = $this.GetOrCreateChildNode($dnsSection, 'Interfaces')
+        
+        # Verify we're not overwriting the interface settings
+        $interfaceList = $interfacesSection.ChildNodes | Where-Object { $_.LocalName -eq 'Interface' }
+        foreach($interface in $interfaceList) {
+            $identifierNode = $interface.ChildNodes | Where-Object { $_.LocalName -eq 'Identifier' }
+            if ($null -eq $identifierNode) {
+                continue
+            }
+
+            if ($identifierNode.'#text' -eq $InterfaceIdentifier) {
+                throw 'Editing DNS interface settings not implemented yet'
+            }
+        }
+
+        $interface = $this.document.CreateElement('Interface', $this.document.DocumentElement.NamespaceURI)
+        $interface.SetAttribute('action', [UnattendXML]::WCM, 'add')
+        $interfacesSection.AppendChild($interface)
+
+        $this.SetTextNodeValue($interface, 'Identifier', $InterfaceIdentifier)
+        $this.SetBoolNodeValue($interface, 'EnableAdapterDomainNameRegistration', $false)
+        $this.SetBoolNodeValue($interface, 'DisableDynamicUpdate', $false)
+        $this.SetTextNodeValue($interface, 'DNSDomain', $DNSDomain)
+
+        $dnsSearchOrder = $this.GetOrCreateChildNode($interface, 'DNSServerSearchOrder')
+        for($i=0; $i -lt $DNSServerAddresses.Count; $i++) {
+            $ipAddress = $this.document.CreateElement('IpAddress', $this.document.DocumentElement.NamespaceURI)
+            $ipAddress.SetAttribute('action', [UnattendXML]::WCM, 'add')
+            $ipAddress.SetAttribute('keyValue',[UnattendXML]::WCM, ($i + 1))
+            $textValueNode = $this.document.CreateTextNode($DNSServerAddresses[$i])
+            $ipAddress.AppendChild($textValueNode)
+
+            $dnsSearchOrder.AppendChild($ipAddress)            
+        }
+
+        $this.SetBoolNodeValue($dnsSection, 'UseDomainNameDevolution', $true)
+        $this.SetTextNodeValue($dnsSection, 'DNSDomain', $DNSDomain)
+    }
+
+    <#
+        .SYNOPSIS
             Configures the administrator password for the new System
         .NOTES
             This command uses a plain text password.
@@ -608,9 +661,9 @@ class UnattendXml
     {
         $firstLogonCommands = $this.GetFirstLogonCommandSection()
         $highestOrderNumber = 0
-        $asyncCommands = $firstLogonCommands.ChildNodes | Where { $_.LocalName -eq 'AsynchronousCommand' }
-        foreach($asyncCommand in $asyncCommands) {
-            $orderNumber = $asyncCommand.ChildNodes | Where { $_.LocalName -eq 'order' }
+        $syncCommands = $firstLogonCommands.ChildNodes | Where { $_.LocalName -eq 'SynchronousCommand' }
+        foreach($syncCommand in $syncCommands) {
+            $orderNumber = $syncCommand.ChildNodes | Where { $_.LocalName -eq 'order' }
             $highestOrderNumber = [Math]::Max($highestOrderNumber, [Convert]::ToInt32($orderNumber.InnerText))
         }
 
@@ -623,16 +676,16 @@ class UnattendXml
         $descriptionNode.AppendChild($descriptionTextNode)
 
         $commandTextNode = $this.document.CreateTextNode($Command)
-        $commandNode = $this.document.CreateElement('Command', $this.document.DocumentElement.NamespaceURI)
+        $commandNode = $this.document.CreateElement('CommandLine', $this.document.DocumentElement.NamespaceURI)
         $commandNode.AppendChild($commandTextNode)
 
-        $asyncCommandNode = $this.document.CreateElement('AsynchronousCommand', $this.document.DocumentElement.NamespaceURI)
-        $asyncCommandNode.SetAttribute('action', [UnattendXML]::WCM, 'add')
-        $asyncCommandNode.AppendChild($orderNode)
-        $asyncCommandNode.AppendChild($descriptionNode)
-        $asyncCommandNode.AppendChild($commandNode)
+        $syncCommandNode = $this.document.CreateElement('SynchronousCommand', $this.document.DocumentElement.NamespaceURI)
+        $syncCommandNode.SetAttribute('action', [UnattendXML]::WCM, 'add')
+        $syncCommandNode.AppendChild($orderNode)
+        $syncCommandNode.AppendChild($descriptionNode)
+        $syncCommandNode.AppendChild($commandNode)
 
-        $firstLogonCommands.AppendChild($asyncCommandNode)
+        $firstLogonCommands.AppendChild($syncCommandNode)
     }
 
     <#
